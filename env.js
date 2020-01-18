@@ -26,6 +26,7 @@ function config ( ) {
 
   env.PORT = readENV('PORT', 1337);
   env.HOSTNAME = readENV('HOSTNAME', null);
+  env.WEBSITE_USER = readENV('WEBSITE_USER', 'user');
   env.IMPORT_CONFIG = readENV('IMPORT_CONFIG', null);
   env.static_files = readENV('NIGHTSCOUT_STATIC_FILES', __dirname + '/static/');
   env.debug = {
@@ -38,6 +39,7 @@ function config ( ) {
 
   setSSL();
   setAPISecret();
+  setWebsitePass();
   setVersion();
   setStorage();
   updateSettings();
@@ -90,6 +92,20 @@ function setAPISecret() {
 
     }
   }
+}
+
+// Repeat the same idea as for setAPISecret() above
+function setWebsitePass() {
+  var key = 'WEBSITE_PASS';
+  if (!(readENV(key) && readENV(key).length > 0)) {
+    var msg = 'Please specify a WEBSITE_PASS variable'
+    console.error(msg);
+    env.err = {desc: msg};
+    return;
+  }
+  var shasum = crypto.createHash('sha1');
+  shasum.update(readENV(key));
+  env.WEBSITE_PASS_HASH = shasum.digest('hex');
 }
 
 function setVersion() {

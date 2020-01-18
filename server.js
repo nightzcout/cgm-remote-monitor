@@ -28,6 +28,8 @@
 
 var env = require('./env')( );
 var language = require('./lib/language')();
+var auth = require('basic-auth');
+var crypto = require('crypto');
 var translate = language.set(env.settings.language).translate;
 
 ///////////////////////////////////////////////////
@@ -40,9 +42,32 @@ function create (app) {
   var transport = (env.ssl
                 ? require('https') : require('http'));
   if (env.ssl) {
-    return transport.createServer(env.ssl, app);
+    return transport.createServer(env.ssl, function (req, res) {
+      checkAuth(req, res, app);
+    });
   }
-  return transport.createServer(app);
+  return transport.createServer(function (req, res) {
+    checkAuth(req, res, app);
+  });
+}
+
+function checkAuth(req, res, app) {
+  var credentials = auth(req);
+  if (!credentials || !check(credentials.name, credentials.pass)) {
+    res.statusCode = 401;
+    res.setHeader('WWW-Authenticate', 'Basic realm="nightscout"');
+    res.end('Access denied');
+  } else {
+    // Access granted
+    app(req, res);
+  }
+}
+
+function check(name, pass) {
+  var shasum = crypto.createHash('sha1');
+  shasum.update(pass);
+  var hashed_pass = shasum.digest('hex');
+  return (name === env.WEBSITE_USER && hashed_pass === env.WEBSITE_PASS_HASH);
 }
 
 require('./lib/server/bootevent')(env, language).boot(function booted (ctx) {
